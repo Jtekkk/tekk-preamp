@@ -123,9 +123,9 @@ public:
 
         g.setColour (b.findColour (juce::ToggleButton::textColourId));
         g.setFont (juce::Font (juce::FontOptions (13.0f)));
-        g.drawText (b.getButtonText(), pill.getRight() + 8.0f, r.getY(),
-                    r.getWidth() - pill.getRight() - 8.0f, r.getHeight(),
-                    juce::Justification::centredLeft);
+        const auto textArea = juce::Rectangle<float> (pill.getRight() + 8.0f, r.getY(),
+                                  r.getWidth() - pill.getRight() - 8.0f, r.getHeight()).toNearestInt();
+        g.drawText (b.getButtonText(), textArea, juce::Justification::centredLeft);
     }
 
     // --- generic button background (used by the segmented character switch) -

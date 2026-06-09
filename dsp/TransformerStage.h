@@ -39,7 +39,8 @@ public:
     void prepare (double fs)
     {
         // integrator leak = the iron's LF bandwidth; also keeps DC bounded
-        Rint = std::exp (-2.0 * M_PI * leakHz / fs);
+        constexpr double pi = 3.14159265358979323846;   // M_PI isn't standard (MSVC)
+        Rint = std::exp (-2.0 * pi * leakHz / fs);
         norm = kFsRef / fs;                 // dt scaling -> fs-independent flux
         ja.reset();
         sInt = 0.0; yPrev = 0.0;

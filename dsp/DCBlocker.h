@@ -9,7 +9,8 @@ class DCBlocker
 public:
     void prepare (double fs, double fc = 6.0)
     {
-        R = std::exp (-2.0 * M_PI * fc / fs);
+        constexpr double pi = 3.14159265358979323846;   // M_PI isn't standard (MSVC)
+        R = std::exp (-2.0 * pi * fc / fs);
         reset();
     }
     void reset() { x1 = y1 = 0.0; }

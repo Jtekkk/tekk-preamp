@@ -191,11 +191,11 @@ void PreampEditor::openCurveChooser()
 {
     chooser = std::make_unique<juce::FileChooser> (
         "Load a .tekkcurve clone capture", juce::File{}, "*.tekkcurve");
-    const auto flags = juce::FileBrowserComponent::openMode
-                     | juce::FileBrowserComponent::canSelectFiles;
+    const auto fcFlags = juce::FileBrowserComponent::openMode
+                       | juce::FileBrowserComponent::canSelectFiles;
     // SafePointer guards against the editor closing while the dialog is open.
     juce::Component::SafePointer<PreampEditor> safe (this);
-    chooser->launchAsync (flags, [safe] (const juce::FileChooser& fc)
+    chooser->launchAsync (fcFlags, [safe] (const juce::FileChooser& fc)
     {
         if (safe == nullptr) return;                            // editor gone
         const auto file = fc.getResult();

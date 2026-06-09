@@ -21,7 +21,7 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
 {
     using namespace juce;
     AudioProcessorValueTreeState::ParameterLayout p;
-    auto db = [] (float lo, float hi, float def)
+    auto db = [] (float lo, float hi, float /*def*/)
     { return NormalisableRange<float> (lo, hi, 0.01f); };
 
     p.add (std::make_unique<AudioParameterFloat>(
