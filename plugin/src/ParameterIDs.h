@@ -35,12 +35,14 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     p.add (std::make_unique<AudioParameterFloat>(
         ParameterID { PID::bias, 1 }, "Bias / Warmth",
         NormalisableRange<float> (0.0f, 1.2f, 0.001f), 0.0f));
+    // flux drive into each core; calibrated for the normalised TransformerStage
+    // (see harness). ~0.0009/0.0013 = musical defaults; top of range = slammed.
     p.add (std::make_unique<AudioParameterFloat>(
         ParameterID { PID::inIron, 1 }, "Input Iron",
-        NormalisableRange<float> (0.0f, 0.05f, 0.0001f, 0.5f), 0.010f));
+        NormalisableRange<float> (0.0f, 0.0035f, 0.00001f, 0.5f), 0.0009f));
     p.add (std::make_unique<AudioParameterFloat>(
         ParameterID { PID::outIron, 1 }, "Output Iron",
-        NormalisableRange<float> (0.0f, 0.05f, 0.0001f, 0.5f), 0.015f));
+        NormalisableRange<float> (0.0f, 0.0035f, 0.00001f, 0.5f), 0.0013f));
     p.add (std::make_unique<AudioParameterFloat>(
         ParameterID { PID::hpf, 1 }, "HPF",
         NormalisableRange<float> (2.0f, 40.0f, 0.1f), 6.0f));

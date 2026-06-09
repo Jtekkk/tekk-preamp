@@ -118,24 +118,31 @@ int main()
 
     // ----------------------------------------------------------------------
     //  EXPERIMENT 3 -- transformer distorts LOWS more than HIGHS (1/omega flux)
-    //  Fixed INPUT amplitude, measure THD at several frequencies through the
-    //  J-A transformer stage. Oversample for clean readout.
+    //  and that distortion BLOOMS with level. Voiced input-iron params; measured
+    //  at a nominal (-20 dBFS) and a hot (-6 dBFS) tone. Oversampled readout, but
+    //  the numbers are rate-independent by construction -- see experiment 5.
     // ----------------------------------------------------------------------
-    printf ("\n[3] TRANSFORMER 1/omega  (J-A core, fixed input amp, fs=384k)\n");
-    printf ("    expect: THD falls as frequency rises (LF flux ~ 1/omega -> deeper sat)\n\n");
+    printf ("\n[3] TRANSFORMER 1/omega + LEVEL BLOOM   (voiced input iron, fs=96k)\n");
+    printf ("    expect: THD falls as frequency rises, and rises with level\n");
+    printf ("            (clean midband/nominal; LF iron when pushed)\n\n");
     {
-        const double fs = 384000.0;
-        JilesAtherton::Params iron { 1.0, 0.12, 1.1e-3, 0.06, 0.25 };
-        const double fluxDrive = 0.010;   // gentle: HF near-linear, LF saturates
-        printf ("    fluxDrive=%.3f, input amp=0.5\n", fluxDrive);
-        printf ("    %-10s %12s\n", "freq(Hz)", "THD(%)");
-        for (double hz : { 40.0, 100.0, 300.0, 1000.0, 5000.0 })
+        const double fs = 96000.0;
+        JilesAtherton::Params iron { 1.0, 0.12, 1.1e-3, 0.032, 0.70 };
+        const double fluxDrive = 0.0009, leakHz = 20.0;
+        printf ("    fluxDrive=%.4f, leak=%.0fHz\n", fluxDrive, leakHz);
+        printf ("    %-10s %14s %14s\n", "freq(Hz)", "THD@-20dB(%)", "THD@-6dB(%)");
+        for (double hz : { 40.0, 80.0, 160.0, 320.0, 1000.0, 5000.0 })
         {
-            std::vector<double> in; int fb = binCentredTone (in, fs, hz, 0.5, N);
-            TransformerStage tf; tf.setParams (iron); tf.setFluxDrive (fluxDrive); tf.prepare (fs);
-            auto out = runStage ([&](float x){ return tf.processSample (x); }, in);
-            auto mag = magSpectrum (out);
-            printf ("    %-10.0f %12.4f\n", hz, 100.0 * thd (mag, fb, 12));
+            auto run = [&] (double amp)
+            {
+                std::vector<double> in; int fb = binCentredTone (in, fs, hz, amp, N);
+                TransformerStage tf; tf.setParams (iron); tf.setFluxDrive (fluxDrive);
+                tf.setLeakHz (leakHz); tf.prepare (fs);
+                auto out = runStage ([&](float x){ return tf.processSample (x); }, in);
+                auto mag = magSpectrum (out);
+                return 100.0 * thd (mag, fb, 12);
+            };
+            printf ("    %-10.0f %14.3f %14.3f\n", hz, run (0.1), run (0.5));
         }
     }
 
@@ -147,7 +154,7 @@ int main()
     printf ("\n[4] HYSTERESIS LOOP AREA   (J-A core, 1 cycle)\n");
     printf ("    expect: nonzero loop area => genuine memory, not a static curve\n\n");
     {
-        JilesAtherton ja; ja.setParams ({ 1.0, 0.12, 1.1e-3, 0.06, 0.25 }); ja.reset();
+        JilesAtherton ja; ja.setParams ({ 1.0, 0.12, 1.1e-3, 0.032, 0.70 }); ja.reset();
         const int pts = 4000; double area = 0.0, Hp = 0.0, Mp = 0.0;
         double Mmax = -1e9, Mmin = 1e9;
         for (int i = 0; i <= pts; ++i)
@@ -160,6 +167,30 @@ int main()
         }
         printf ("    loop area      = %.4f  (0 would mean no hysteresis)\n", std::abs (area));
         printf ("    M swing        = %.4f .. %.4f\n", Mmin, Mmax);
+    }
+
+    // ----------------------------------------------------------------------
+    //  EXPERIMENT 5 -- iron character is SAMPLE-RATE INDEPENDENT
+    //  The transformer integrator is dt-normalised, so the flux driving the
+    //  core (hence the THD) is the same whether the plugin runs at 1x or 8x
+    //  oversampling. Before that fix the core was driven ~fs harder and the
+    //  voicing changed with every oversampling setting.
+    // ----------------------------------------------------------------------
+    printf ("\n[5] SAMPLE-RATE INDEPENDENCE   (voiced input iron, 40Hz, -6 dBFS)\n");
+    printf ("    expect: THD nearly identical across rates => OS factor doesn't\n");
+    printf ("            change the iron (flat column)\n\n");
+    {
+        JilesAtherton::Params iron { 1.0, 0.12, 1.1e-3, 0.032, 0.70 };
+        printf ("    %-12s %14s\n", "fs(Hz)", "THD@40Hz(%)");
+        for (double fs : { 48000.0, 96000.0, 192000.0, 384000.0 })
+        {
+            std::vector<double> in; int fb = binCentredTone (in, fs, 40.0, 0.5, N);
+            TransformerStage tf; tf.setParams (iron); tf.setFluxDrive (0.0009);
+            tf.setLeakHz (20.0); tf.prepare (fs);
+            auto out = runStage ([&](float x){ return tf.processSample (x); }, in);
+            auto mag = magSpectrum (out);
+            printf ("    %-12.0f %14.3f\n", fs, 100.0 * thd (mag, fb, 12));
+        }
     }
 
     printf ("\n================================================================\n");

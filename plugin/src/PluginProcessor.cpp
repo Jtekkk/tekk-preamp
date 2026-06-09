@@ -9,17 +9,29 @@ PreampProcessor::PreampProcessor()
     buildPlaceholderCloneCurve();
 }
 
-// ---- voicing-specific J-A params (this is the voicing pass, in code form) ----
+// ---- voicing-specific J-A params (the voicing pass, in code form) ----------
+//  Tuned against the offline harness (see harness/measure.cpp). With the
+//  timestep-normalised TransformerStage these produce, per transformer:
+//    * a monotonic 1/omega THD curve (LF coloured, HF clean),
+//    * distortion that blooms with level (clean at nominal, iron when pushed),
+//    * an odd-dominant (H3 > H2) spectrum, as a symmetric core should,
+//    * a non-zero B-H loop (real memory),
+//  and -- crucially -- identical character at every oversampling factor.
+//  Pair them with the leak (LF bandwidth) set in buildChains().
 static JilesAtherton::Params inputIron()
 {
-    // input transformer: tighter, lighter LF bias than the output
-    return { 1.0, 0.12, 1.1e-3, 0.05, 0.30 };
+    // input transformer: tighter, lighter LF colour (~2.5% THD @40Hz nominal)
+    return { 1.0, 0.12, 1.1e-3, 0.032, 0.70 };
 }
 static JilesAtherton::Params outputIron()
 {
-    // output transformer: heavier lows, a touch more loss (3rd-harmonic LF)
-    return { 1.0, 0.14, 1.2e-3, 0.07, 0.22 };
+    // output transformer: heavier lows, more 3rd-harmonic (~5.6% THD @40Hz nom.)
+    return { 1.0, 0.13, 1.2e-3, 0.030, 0.62 };
 }
+// per-transformer LF bandwidth (Hz): the iron's low-frequency rolloff. Lower =
+// more sub-bass reaches the core = heavier lows, so the output sits below input.
+static constexpr double kInputLeakHz  = 20.0;
+static constexpr double kOutputLeakHz = 15.0;
 
 void PreampProcessor::buildPlaceholderCloneCurve()
 {
@@ -68,7 +80,9 @@ void PreampProcessor::buildChains (int numChannels, double fs, int characterChoi
         auto outTr  = std::make_unique<TrimBlock>();        cc.outTrim = outTr.get();
 
         cc.inXf->setParams (inputIron());
+        cc.inXf->setLeakHz (kInputLeakHz);
         cc.outXf->setParams (outputIron());
+        cc.outXf->setLeakHz (kOutputLeakHz);
 
         cc.chain.stages.push_back (std::move (inTrim));
         cc.chain.stages.push_back (std::move (inXf));

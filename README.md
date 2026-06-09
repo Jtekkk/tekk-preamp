@@ -37,8 +37,11 @@ oversampling.
 Validated there (measured, not asserted):
   [1] bias=0 -> even harmonics at the numerical floor; rise monotonically w/ bias
   [2] 1st-order ADAA -> ~12 dB lower alias floor at equal sample rate
-  [3] transformer THD falls with frequency (LF flux ~ 1/omega -> deeper sat)
+  [3] transformer THD falls with frequency (LF flux ~ 1/omega) AND blooms with
+      level (clean at nominal, iron when pushed)
   [4] J-A B-H loop has nonzero area (real memory)
+  [5] transformer character is sample-rate independent (dt-normalised flux ->
+      same voicing at 1x..8x oversampling)
 
 ## Build the plugin
 
@@ -50,10 +53,15 @@ Validated there (measured, not asserted):
 To use a local JUCE checkout instead of FetchContent, set JUCE_DIR and swap the
 FetchContent block in CMakeLists.txt for add_subdirectory(${JUCE_DIR} juce).
 
+## Done
+  * Voiced the iron: inputIron/outputIron in PluginProcessor.cpp are now tuned
+    against the harness (input lighter, output heavier in the lows), with the
+    flux integrator dt-normalised so the voicing holds at every oversampling
+    factor. The IN/OUT IRON knobs scale the flux drive around those points.
+  * UI: a custom dark/cyberpunk editor (TekkLookAndFeel + PluginEditor) replaces
+    the generic panel -- rotary knobs, TEKK/CLONE switch, live I/O meters.
+    tools/RenderUI.cpp rasterises it to a PNG headlessly (-DTEKK_BUILD_UITOOL=ON).
+
 ## Open work
-  * Voice the iron: the J-A {Ms,a,alpha,k,c} sets in PluginProcessor.cpp
-    (inputIron/outputIron) are starting points, not a tuned transformer model.
   * Clone capture pipeline: replace buildPlaceholderCloneCurve() with a real
     slow-sweep capture of a target unit.
-  * UI: replace the GenericAudioProcessorEditor placeholder with the real
-    dark/cyberpunk front end.

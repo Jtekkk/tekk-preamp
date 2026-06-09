@@ -21,16 +21,26 @@
 //  iron character. Input-vs-output transformers differ mainly in fluxDrive and
 //  in the J-A params (output usually voiced heavier in the lows).
 // ============================================================================
+//  SAMPLE-RATE INDEPENDENCE: the flux is a true time integral, integral V dt,
+//  so the integrator input is scaled by dt = 1/fs (written kFsRef/fs against a
+//  48 kHz reference). Without it the raw accumulator's gain rises with fs and
+//  the core is driven proportionally harder at higher oversampling -- the whole
+//  iron character would shift every time you switch 2x/4x/8x. The differentiator
+//  divides the same factor back out so the linear in-band gain stays unity and
+//  fs-independent (THD, a ratio, is unaffected by that overall scale).
+// ============================================================================
 class TransformerStage
 {
 public:
     void setParams (const JilesAtherton::Params& p) { ja.setParams (p); }
     void setFluxDrive (double d) { fluxDrive = d; }
+    void setLeakHz    (double hz) { leakHz = hz; }   // transformer LF bandwidth
 
     void prepare (double fs)
     {
-        // integrator leak ~ a few Hz so the linear path stays flat in-band
-        Rint = std::exp (-2.0 * M_PI * 4.0 / fs);
+        // integrator leak = the iron's LF bandwidth; also keeps DC bounded
+        Rint = std::exp (-2.0 * M_PI * leakHz / fs);
+        norm = kFsRef / fs;                 // dt scaling -> fs-independent flux
         ja.reset();
         sInt = 0.0; yPrev = 0.0;
     }
@@ -40,21 +50,23 @@ public:
     {
         const double x = (double) xf;
 
-        // leaky integrator -> quantity proportional to flux/applied field
-        sInt = Rint * sInt + x;
+        // leaky integrator with timestep scaling -> flux ~ integral V dt
+        sInt = Rint * sInt + x * norm;
         const double H = fluxDrive * sInt;
 
         // nonlinear magnetisation (carries the memory / hysteresis)
         const double M = ja.process (H);
 
-        // differentiate back to a voltage; linear part of (int->diff) ~ unity
-        const double y = M - yPrev;
+        // differentiate back to a voltage; /norm cancels the integrator's dt so
+        // the linear path is unity gain and identical at every sample rate
+        const double y = (M - yPrev) / norm;
         yPrev = M;
         return (float) y;
     }
 
 private:
+    static constexpr double kFsRef = 48000.0;   // flux reference rate
     JilesAtherton ja;
-    double fluxDrive = 1.0;
-    double Rint = 0.999, sInt = 0.0, yPrev = 0.0;
+    double fluxDrive = 1.0, leakHz = 12.0;
+    double Rint = 0.999, norm = 1.0, sInt = 0.0, yPrev = 0.0;
 };
