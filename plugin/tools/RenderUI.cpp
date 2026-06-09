@@ -40,10 +40,13 @@ int main (int argc, char** argv)
     pose (PID::hpf,     0.22f);
 
     std::unique_ptr<juce::AudioProcessorEditor> ed (proc.createEditor());
+    ed->setVisible (true);
     ed->setBounds (0, 0, w, h);
 
-    // let any pending async UI updates / one timer tick settle
-    juce::MessageManager::getInstance()->runDispatchLoopUntil (80);
+    // Note: APVTS slider attachments are built inside createEditor() AFTER the
+    // poses above, and sendInitialUpdate() runs synchronously on this (message)
+    // thread -- so the knobs already reflect the posed values without pumping a
+    // dispatch loop. Meters read 0 (no audio), which is the correct idle state.
 
     juce::Image img (juce::Image::ARGB, w, h, true);
     {
