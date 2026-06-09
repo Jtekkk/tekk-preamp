@@ -16,6 +16,14 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(juce)
 
 # --- plugin target --------------------------------------------------------
+# Don't auto-install into the host plugin folders when cross-compiling (the
+# Windows .vst3 would land in a Linux directory).
+if(CMAKE_CROSSCOMPILING)
+    set(TEKK_COPY_AFTER_BUILD FALSE)
+else()
+    set(TEKK_COPY_AFTER_BUILD TRUE)
+endif()
+
 juce_add_plugin(TEKKPreamp
     PRODUCT_NAME            "TEKK Preamp"
     COMPANY_NAME            "TEKK"
@@ -24,7 +32,7 @@ juce_add_plugin(TEKKPreamp
     FORMATS                 VST3 AU Standalone
     IS_SYNTH                FALSE
     NEEDS_MIDI_INPUT        FALSE
-    COPY_PLUGIN_AFTER_BUILD TRUE)
+    COPY_PLUGIN_AFTER_BUILD ${TEKK_COPY_AFTER_BUILD})
 
 target_sources(TEKKPreamp PRIVATE
     src/PluginProcessor.cpp

@@ -61,6 +61,22 @@ Validated there (measured, not asserted):
 To use a local JUCE checkout instead of FetchContent, set JUCE_DIR and swap the
 FetchContent block in CMakeLists.txt for add_subdirectory(${JUCE_DIR} juce).
 
+### Windows builds
+
+JUCE 8 removed MinGW support (juce_TargetPlatform.h literally `#warning`s that
+"Support for MinGW has been removed"), so a plain `mingw-w64` cross-build does
+not compile. Two routes that do work:
+
+  * **GitHub Actions (recommended).** `.github/workflows/windows.yml` builds the
+    VST3 + Standalone natively with MSVC on a `windows-latest` runner and uploads
+    them as artifacts. Run it from the Actions tab (pick the branch). This is the
+    most reliable way to get a Windows binary.
+
+  * **Cross-compile from Linux with clang-cl** (targets the MSVC ABI, which JUCE
+    treats as MSVC). Needs the MSVC CRT + Windows SDK via xwin; see the header of
+    `cmake/toolchain-windows-clang-cl.cmake` for the exact steps. clang-cl is the
+    only cross-compiler JUCE 8 accepts for Windows.
+
 ## Clone capture (cloning a real unit)
 
     g++ -O2 -std=c++17 -I dsp -I harness -I tools \

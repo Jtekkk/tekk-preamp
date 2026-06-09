@@ -1,0 +1,36 @@
+name: Windows build
+
+# Builds the Windows VST3 + Standalone natively with MSVC (JUCE 8's supported
+# Windows toolchain) and uploads them as downloadable artifacts. Run it from the
+# Actions tab (Run workflow -> pick a branch), or it runs on pushes to main.
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure (MSVC, Release)
+        run: cmake -S plugin -B plugin/build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build plugin/build --config Release --parallel
+
+      - name: Collect artifacts
+        shell: bash
+        run: |
+          mkdir dist
+          cp -r "plugin/build/TEKKPreamp_artefacts/Release/VST3/TEKK Preamp.vst3" dist/ || true
+          cp    "plugin/build/TEKKPreamp_artefacts/Release/Standalone/TEKK Preamp.exe" dist/ || true
+          ls -R dist
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: tekk-preamp-windows-x64
+          path: dist/**
+          if-no-files-found: error

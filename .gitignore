@@ -36,3 +36,5 @@ measure
 
 # JUCE local
 JuceLibraryCode/
+build-win/
+**/build-win/
