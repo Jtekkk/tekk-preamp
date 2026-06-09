@@ -23,12 +23,17 @@ oversampling.
       TransformerStage.h  integrate -> J-A -> differentiate (1/omega flux)
       DCBlocker.h       inter-stage HPF
       PreampChain.h     polymorphic stage chain
+      CloneCurve.h      captured-curve file format (.tekkcurve) + (de)serialise
     harness/        offline validation (compiles & runs anywhere)
-      measure.cpp       four experiments (see below)
+      measure.cpp       five experiments (see below)
       SimpleFFT.h       radix-2 FFT
+    tools/          JUCE-free dev tooling
+      clone_capture.cpp clone capture pipeline (signal/extract/bake/selftest)
+      WavIO.h           tiny WAV read/write
     plugin/         JUCE plugin
       CMakeLists.txt    fetches JUCE 8.0.4 (or set JUCE_DIR)
-      src/              processor, params, placeholder editor
+      src/              processor, params, dark/cyberpunk editor + LookAndFeel
+      src/DefaultCloneCurve.h  generated: the baked-in clone capture
 
 ## Build & run the harness
 
@@ -53,6 +58,25 @@ Validated there (measured, not asserted):
 To use a local JUCE checkout instead of FetchContent, set JUCE_DIR and swap the
 FetchContent block in CMakeLists.txt for add_subdirectory(${JUCE_DIR} juce).
 
+## Clone capture (cloning a real unit)
+
+    g++ -O2 -std=c++17 -I dsp -I harness -I tools \
+        tools/clone_capture.cpp -o clone_capture
+    ./clone_capture selftest               # simulated round-trip + assertions
+
+    ./clone_capture signal sweep.wav       # 1) make the test signal
+    #                                        2) play it through the target unit,
+    #                                           record the output -> rec.wav
+    ./clone_capture extract sweep.wav rec.wav clone.tekkcurve   # 3) extract curve
+    ./clone_capture bake plugin/src/DefaultCloneCurve.h         # bake -> default
+
+The extractor time-aligns the recording (latency search), bins output by input
+level over the whole sweep, and averages -- which also collapses the unit's thin
+reactive hysteresis into the mean static curve (the iron memory is modelled
+separately by the J-A cores around the clone stage). selftest reconstructs a
+known device from a noisy, delayed recording to <1e-3 rms and matches its 1 kHz
+THD to <0.05%. The plugin loads .tekkcurve at runtime via loadCloneCurveText().
+
 ## Done
   * Voiced the iron: inputIron/outputIron in PluginProcessor.cpp are now tuned
     against the harness (input lighter, output heavier in the lows), with the
@@ -61,7 +85,11 @@ FetchContent block in CMakeLists.txt for add_subdirectory(${JUCE_DIR} juce).
   * UI: a custom dark/cyberpunk editor (TekkLookAndFeel + PluginEditor) replaces
     the generic panel -- rotary knobs, TEKK/CLONE switch, live I/O meters.
     tools/RenderUI.cpp rasterises it to a PNG headlessly (-DTEKK_BUILD_UITOOL=ON).
+  * Clone capture pipeline: tools/clone_capture.cpp turns a recorded sweep of a
+    target unit into a .tekkcurve LUT; the default clone is now a baked capture
+    (DefaultCloneCurve.h) rather than a hand-written placeholder.
 
 ## Open work
-  * Clone capture pipeline: replace buildPlaceholderCloneCurve() with a real
-    slow-sweep capture of a target unit.
+  * Higher-fidelity clone options behind the same ActiveStage seam: WDF Koren
+    triode, or a small RTNeural LSTM trained on device captures.
+  * UI to load a user .tekkcurve at runtime (loadCloneCurveText is already wired).

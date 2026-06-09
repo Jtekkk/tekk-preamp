@@ -6,6 +6,8 @@
 // shared, JUCE-free DSP core (same headers the offline harness validates)
 #include "../../dsp/PreampChain.h"
 #include "../../dsp/ActiveStage.h"
+#include "../../dsp/CloneCurve.h"
+#include "DefaultCloneCurve.h"   // generated: tools/clone_capture.cpp bake
 
 class PreampProcessor : public juce::AudioProcessor
 {
@@ -44,6 +46,13 @@ public:
     std::atomic<float> meterIn  { 0.0f };
     std::atomic<float> meterOut { 0.0f };
 
+    // Swap the clone path's captured curve at runtime (e.g. a user-loaded
+    // .tekkcurve from tools/clone_capture). Thread-safe; the chain is rebuilt on
+    // the next processBlock, exactly like a character switch. Returns false if
+    // the curve/text is invalid.
+    bool loadCloneCurve     (const CloneCurve& c);
+    bool loadCloneCurveText (const std::string& tekkcurveText);
+
 private:
     // typed handles into one channel's chain so we can push live params each block
     struct ChannelChain
@@ -70,12 +79,14 @@ private:
 
     juce::SmoothedValue<float> inGainSm, outGainSm, autoGainSm;
 
-    // captured transfer curve for the clone path (placeholder: a measured curve
-    // would be loaded from a resource / sweep). Here: an asymmetric soft clip so
-    // the clone path is audibly distinct and fully functional out of the box.
+    // captured transfer curve for the clone path. Defaults to the baked-in
+    // reference-unit capture (DefaultCloneCurve.h, produced by the offline
+    // capture pipeline); replaceable at runtime via loadCloneCurve(). Guarded by
+    // cloneLock because makeActiveStage() copies it during a (non-RT) rebuild.
     std::vector<float> cloneCurve;
     float cloneRange = 4.0f;
-    void buildPlaceholderCloneCurve();
+    juce::SpinLock cloneLock;
+    void loadDefaultCloneCurve();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PreampProcessor)
 };

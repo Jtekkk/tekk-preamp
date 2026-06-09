@@ -6,7 +6,7 @@ PreampProcessor::PreampProcessor()
         .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
         .withOutput ("Output", juce::AudioChannelSet::stereo(), true))
 {
-    buildPlaceholderCloneCurve();
+    loadDefaultCloneCurve();
 }
 
 // ---- voicing-specific J-A params (the voicing pass, in code form) ----------
@@ -33,19 +33,30 @@ static JilesAtherton::Params outputIron()
 static constexpr double kInputLeakHz  = 20.0;
 static constexpr double kOutputLeakHz = 15.0;
 
-void PreampProcessor::buildPlaceholderCloneCurve()
+void PreampProcessor::loadDefaultCloneCurve()
 {
-    // Stand-in for a real capture: asymmetric tanh blend sampled to a LUT.
-    // Replace loadCurve() input with your slow-sweep capture of a target unit.
-    const int N = 2048;
-    cloneCurve.resize (N);
-    for (int i = 0; i < N; ++i)
+    // The baked-in capture of the reference unit (tools/clone_capture bake).
+    const juce::SpinLock::ScopedLockType lock (cloneLock);
+    cloneCurve.assign (DefaultCloneCurve::kCurve,
+                       DefaultCloneCurve::kCurve + DefaultCloneCurve::kCurveN);
+    cloneRange = DefaultCloneCurve::kCurveRange;
+}
+
+bool PreampProcessor::loadCloneCurve (const CloneCurve& c)
+{
+    if (! c.valid()) return false;
     {
-        double x = cloneRange * (2.0 * i / (N - 1) - 1.0);
-        double y = 0.5 * std::tanh (1.6 * x + 0.25)
-                 + 0.5 * std::tanh (1.1 * x) - 0.5 * std::tanh (0.25);
-        cloneCurve[(size_t) i] = (float) y;
+        const juce::SpinLock::ScopedLockType lock (cloneLock);
+        cloneCurve = c.samples;
+        cloneRange = c.range;
     }
+    builtCharacter = -1;            // force a rebuild on the next block (new curve)
+    return true;
+}
+
+bool PreampProcessor::loadCloneCurveText (const std::string& tekkcurveText)
+{
+    return loadCloneCurve (CloneCurve::parse (tekkcurveText));
 }
 
 std::unique_ptr<ActiveStage> PreampProcessor::makeActiveStage (int characterChoice)
@@ -53,6 +64,7 @@ std::unique_ptr<ActiveStage> PreampProcessor::makeActiveStage (int characterChoi
     if (characterChoice == 1)   // Clone
     {
         auto s = std::make_unique<LutCloneStage>();
+        const juce::SpinLock::ScopedLockType lock (cloneLock);
         s->loadCurve (cloneCurve, cloneRange);
         return s;
     }
