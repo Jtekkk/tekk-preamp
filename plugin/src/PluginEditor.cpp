@@ -3,6 +3,9 @@
 
 using LF = TekkLookAndFeel;
 
+static constexpr int kHeaderH = 72;   // shared by paint() + resized()
+static constexpr int kFooterH = 52;
+
 // ===========================================================================
 //  LevelMeter
 // ===========================================================================
@@ -106,6 +109,18 @@ PreampEditor::PreampEditor (PreampProcessor& p)
         cloneBtn.setToggleState (ch0 == 1, juce::dontSendNotification);
     }
 
+    // clone curve loader
+    loadBtn.getProperties().set ("accent", (int) LF::cMagenta);
+    loadBtn.setColour (juce::TextButton::textColourOffId, juce::Colour (LF::cTextDim));
+    loadBtn.onClick = [this] { openCurveChooser(); };
+    addAndMakeVisible (loadBtn);
+
+    cloneNameLabel.setJustificationType (juce::Justification::centredRight);
+    cloneNameLabel.setColour (juce::Label::textColourId, juce::Colour (LF::cTextDim));
+    cloneNameLabel.setFont (juce::Font (juce::FontOptions (11.0f)));
+    cloneNameLabel.setText ("clone: " + proc.getCloneName(), juce::dontSendNotification);
+    addAndMakeVisible (cloneNameLabel);
+
     // --- footer ---
     autoGainBtn.setColour (juce::ToggleButton::textColourId, juce::Colour (LF::cTextDim));
     lowLatBtn  .setColour (juce::ToggleButton::textColourId, juce::Colour (LF::cTextDim));
@@ -169,6 +184,33 @@ void PreampEditor::setCharacter (int index)
             *c = index;                                 // notifies host + processor
 }
 
+void PreampEditor::openCurveChooser()
+{
+    chooser = std::make_unique<juce::FileChooser> (
+        "Load a .tekkcurve clone capture", juce::File{}, "*.tekkcurve");
+    const auto flags = juce::FileBrowserComponent::openMode
+                     | juce::FileBrowserComponent::canSelectFiles;
+    // SafePointer guards against the editor closing while the dialog is open.
+    juce::Component::SafePointer<PreampEditor> safe (this);
+    chooser->launchAsync (flags, [safe] (const juce::FileChooser& fc)
+    {
+        if (safe == nullptr) return;                            // editor gone
+        const auto file = fc.getResult();
+        if (file == juce::File{}) return;                       // cancelled
+        const bool ok = safe->proc.loadCloneCurveText (file.loadFileAsString().toStdString(),
+                                                       file.getFileNameWithoutExtension());
+        if (ok)
+        {
+            safe->setCharacter (1);                             // hear it immediately
+            safe->cloneNameLabel.setText ("clone: " + safe->proc.getCloneName(), juce::dontSendNotification);
+        }
+        else
+        {
+            safe->cloneNameLabel.setText ("invalid .tekkcurve", juce::dontSendNotification);
+        }
+    });
+}
+
 void PreampEditor::timerCallback()
 {
     inMeter.update();
@@ -177,6 +219,9 @@ void PreampEditor::timerCallback()
     const int ch = (int) proc.apvts.getRawParameterValue (PID::character)->load();
     tekkBtn .setToggleState (ch == 0, juce::dontSendNotification);
     cloneBtn.setToggleState (ch == 1, juce::dontSendNotification);
+
+    // keep the clone name in sync (also catches host preset / state restores)
+    cloneNameLabel.setText ("clone: " + proc.getCloneName(), juce::dontSendNotification);
 }
 
 void PreampEditor::paint (juce::Graphics& g)
@@ -184,8 +229,8 @@ void PreampEditor::paint (juce::Graphics& g)
     auto b = getLocalBounds();
     g.fillAll (juce::Colour (LF::cBgDeep));
 
-    auto header = b.removeFromTop (64);
-    auto footer = b.removeFromBottom (52);
+    auto header = b.removeFromTop (kHeaderH);
+    auto footer = b.removeFromBottom (kFooterH);
 
     g.setColour (juce::Colour (LF::cBgPanel));
     g.fillRect (header);
@@ -211,15 +256,21 @@ void PreampEditor::paint (juce::Graphics& g)
 void PreampEditor::resized()
 {
     auto b = getLocalBounds();
-    auto header = b.removeFromTop (64);
-    auto footer = b.removeFromBottom (52);
+    auto header = b.removeFromTop (kHeaderH);
+    auto footer = b.removeFromBottom (kFooterH);
 
-    // header: character switch, right-aligned
+    // header right: [ LOAD CLONE | TEKK | CLONE ] over a clone-name strip
     {
-        auto h  = header.reduced (14, 15);
-        auto sw = h.removeFromRight (190);
+        auto h     = header.reduced (14, 12);
+        auto right = h.removeFromRight (300);
+        auto top   = right.removeFromTop (26);
+        auto sw    = top.removeFromRight (190);
         tekkBtn .setBounds (sw.removeFromLeft (sw.getWidth() / 2).reduced (2));
         cloneBtn.setBounds (sw.reduced (2));
+        top.removeFromRight (8);
+        loadBtn.setBounds (top.removeFromRight (96));
+        right.removeFromTop (3);
+        cloneNameLabel.setBounds (right);
     }
 
     // footer: AUTO GAIN | OVERSAMPLE | LOW LATENCY

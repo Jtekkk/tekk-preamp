@@ -40,23 +40,33 @@ void PreampProcessor::loadDefaultCloneCurve()
     cloneCurve.assign (DefaultCloneCurve::kCurve,
                        DefaultCloneCurve::kCurve + DefaultCloneCurve::kCurveN);
     cloneRange = DefaultCloneCurve::kCurveRange;
+    cloneName = "default";
+    customClone = false;
 }
 
-bool PreampProcessor::loadCloneCurve (const CloneCurve& c)
+bool PreampProcessor::loadCloneCurve (const CloneCurve& c, const juce::String& name)
 {
     if (! c.valid()) return false;
     {
         const juce::SpinLock::ScopedLockType lock (cloneLock);
         cloneCurve = c.samples;
         cloneRange = c.range;
+        cloneName  = name.isNotEmpty() ? name : "custom";
+        customClone = true;
     }
     builtCharacter = -1;            // force a rebuild on the next block (new curve)
     return true;
 }
 
-bool PreampProcessor::loadCloneCurveText (const std::string& tekkcurveText)
+bool PreampProcessor::loadCloneCurveText (const std::string& tekkcurveText, const juce::String& name)
 {
-    return loadCloneCurve (CloneCurve::parse (tekkcurveText));
+    return loadCloneCurve (CloneCurve::parse (tekkcurveText), name);
+}
+
+juce::String PreampProcessor::getCloneName()
+{
+    const juce::SpinLock::ScopedLockType lock (cloneLock);
+    return cloneName;
 }
 
 std::unique_ptr<ActiveStage> PreampProcessor::makeActiveStage (int characterChoice)
@@ -248,14 +258,42 @@ void PreampProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
 
 void PreampProcessor::getStateInformation (juce::MemoryBlock& dest)
 {
-    if (auto xml = apvts.copyState().createXml())
-        copyXmlToBinary (*xml, dest);
+    // wrap the APVTS state + (only if loaded) a user clone curve, so a session
+    // restores both. The default clone is baked in, so it's never serialised.
+    juce::XmlElement root ("TEKKSTATE");
+    if (auto params = apvts.copyState().createXml())
+        root.addChildElement (params.release());        // tag == "PARAMS"
+
+    if (customClone)
+    {
+        const juce::SpinLock::ScopedLockType lock (cloneLock);
+        auto* clone = root.createNewChildElement ("CLONE");
+        clone->setAttribute ("name", cloneName);
+        CloneCurve c; c.range = cloneRange; c.samples = cloneCurve;
+        clone->addTextElement (c.serialize());
+    }
+    copyXmlToBinary (root, dest);
 }
 
 void PreampProcessor::setStateInformation (const void* data, int size)
 {
-    if (auto xml = getXmlFromBinary (data, size))
+    auto xml = getXmlFromBinary (data, size);
+    if (! xml) return;
+
+    if (xml->hasTagName ("TEKKSTATE"))                  // current wrapper format
+    {
+        if (auto* params = xml->getChildByName ("PARAMS"))
+            apvts.replaceState (juce::ValueTree::fromXml (*params));
+        if (auto* clone = xml->getChildByName ("CLONE"))
+            loadCloneCurveText (clone->getAllSubText().toStdString(),
+                                clone->getStringAttribute ("name", "custom"));
+        else
+            loadDefaultCloneCurve();
+    }
+    else                                                // legacy: bare APVTS state
+    {
         apvts.replaceState (juce::ValueTree::fromXml (*xml));
+    }
 }
 
 juce::AudioProcessorEditor* PreampProcessor::createEditor()

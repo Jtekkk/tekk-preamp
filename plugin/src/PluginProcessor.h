@@ -48,10 +48,11 @@ public:
 
     // Swap the clone path's captured curve at runtime (e.g. a user-loaded
     // .tekkcurve from tools/clone_capture). Thread-safe; the chain is rebuilt on
-    // the next processBlock, exactly like a character switch. Returns false if
-    // the curve/text is invalid.
-    bool loadCloneCurve     (const CloneCurve& c);
-    bool loadCloneCurveText (const std::string& tekkcurveText);
+    // the next processBlock, exactly like a character switch. A custom curve is
+    // persisted in the plugin state. Returns false if the curve/text is invalid.
+    bool loadCloneCurve     (const CloneCurve& c, const juce::String& name = "custom");
+    bool loadCloneCurveText (const std::string& tekkcurveText, const juce::String& name = "custom");
+    juce::String getCloneName();   // display name of the active clone curve
 
 private:
     // typed handles into one channel's chain so we can push live params each block
@@ -85,6 +86,8 @@ private:
     // cloneLock because makeActiveStage() copies it during a (non-RT) rebuild.
     std::vector<float> cloneCurve;
     float cloneRange = 4.0f;
+    juce::String cloneName { "default" };   // guarded by cloneLock
+    bool  customClone = false;              // true once a user curve is loaded
     juce::SpinLock cloneLock;
     void loadDefaultCloneCurve();
 

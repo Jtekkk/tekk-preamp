@@ -88,8 +88,10 @@ THD to <0.05%. The plugin loads .tekkcurve at runtime via loadCloneCurveText().
   * Clone capture pipeline: tools/clone_capture.cpp turns a recorded sweep of a
     target unit into a .tekkcurve LUT; the default clone is now a baked capture
     (DefaultCloneCurve.h) rather than a hand-written placeholder.
+  * Runtime clone loading: a LOAD CLONE button in the editor opens a .tekkcurve,
+    switches to the CLONE voicing, and shows the curve name. A loaded curve is
+    persisted in the plugin state (so it survives a session save/reload).
 
 ## Open work
   * Higher-fidelity clone options behind the same ActiveStage seam: WDF Koren
     triode, or a small RTNeural LSTM trained on device captures.
-  * UI to load a user .tekkcurve at runtime (loadCloneCurveText is already wired).

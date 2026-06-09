@@ -58,6 +58,12 @@ private:
     // character segmented switch (manual sync to the choice param)
     juce::TextButton tekkBtn { "TEKK" }, cloneBtn { "CLONE" };
 
+    // clone curve loader: pick a .tekkcurve, hand it to the processor
+    juce::TextButton loadBtn { "LOAD CLONE" };
+    juce::Label      cloneNameLabel;
+    std::unique_ptr<juce::FileChooser> chooser;
+    void openCurveChooser();
+
     // footer controls
     juce::ToggleButton autoGainBtn { "AUTO GAIN" }, lowLatBtn { "LOW LATENCY" };
     juce::ComboBox     osBox;
