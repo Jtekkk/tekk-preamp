@@ -158,8 +158,9 @@ void PreampProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     inGainSm.setTargetValue (inGain);
     outGainSm.setTargetValue (outGain);
 
-    // input-trim into the block + capture pre-RMS for auto-gain
+    // input-trim into the block + capture pre-RMS for auto-gain + IN meter peak
     double preSumSq = 0.0;
+    float  inPeak   = 0.0f;
     for (int ch = 0; ch < numCh; ++ch)
     {
         auto* d = buffer.getWritePointer (ch);
@@ -168,9 +169,11 @@ void PreampProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
             const float g = inGainSm.getNextValue();
             d[n] *= g;
             preSumSq += (double) d[n] * d[n];
+            inPeak = juce::jmax (inPeak, std::abs (d[n]));
         }
         inGainSm.setCurrentAndTargetValue (inGain);   // re-arm per channel
     }
+    meterIn.store (inPeak, std::memory_order_relaxed);
 
     // ---- oversampled nonlinear block ----
     juce::dsp::AudioBlock<float> block (buffer);
@@ -202,14 +205,19 @@ void PreampProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     makeup = juce::jlimit (0.25f, 4.0f, makeup);
     autoGainSm.setTargetValue (makeup);
 
+    float outPeak = 0.0f;
     for (int ch = 0; ch < numCh; ++ch)
     {
         auto* d = buffer.getWritePointer (ch);
         for (int n = 0; n < numSmp; ++n)
+        {
             d[n] *= outGainSm.getNextValue() * autoGainSm.getNextValue();
+            outPeak = juce::jmax (outPeak, std::abs (d[n]));
+        }
         outGainSm.setCurrentAndTargetValue (outGain);
         autoGainSm.setCurrentAndTargetValue (makeup);
     }
+    meterOut.store (outPeak, std::memory_order_relaxed);
 }
 
 void PreampProcessor::getStateInformation (juce::MemoryBlock& dest)

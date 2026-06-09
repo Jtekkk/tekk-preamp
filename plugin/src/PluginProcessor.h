@@ -38,6 +38,12 @@ public:
 
     juce::AudioProcessorValueTreeState apvts { *this, nullptr, "PARAMS", createLayout() };
 
+    // --- metering: written on the audio thread, polled by the editor's timer.
+    //  IN  = peak driving the chain (post input-trim, so it tracks the knob);
+    //  OUT = peak leaving the chain (post output-trim + auto-gain).
+    std::atomic<float> meterIn  { 0.0f };
+    std::atomic<float> meterOut { 0.0f };
+
 private:
     // typed handles into one channel's chain so we can push live params each block
     struct ChannelChain

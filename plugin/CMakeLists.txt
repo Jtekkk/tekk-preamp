@@ -27,7 +27,8 @@ juce_add_plugin(TEKKPreamp
     COPY_PLUGIN_AFTER_BUILD TRUE)
 
 target_sources(TEKKPreamp PRIVATE
-    src/PluginProcessor.cpp)
+    src/PluginProcessor.cpp
+    src/PluginEditor.cpp)
 
 target_include_directories(TEKKPreamp PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../dsp)   # shared JUCE-free DSP headers
@@ -45,3 +46,30 @@ target_link_libraries(TEKKPreamp PRIVATE
     juce::juce_recommended_config_flags
     juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags)
+
+# --- dev tool: offline UI screenshot renderer (optional) ------------------
+# Rasterises the real editor to a PNG headlessly (no host, no display). Off by
+# default so the normal plugin build stays lean:
+#   cmake -B build -DTEKK_BUILD_UITOOL=ON && cmake --build build --target TEKKRenderUI
+option(TEKK_BUILD_UITOOL "Build the offline UI screenshot renderer" OFF)
+if(TEKK_BUILD_UITOOL)
+    juce_add_console_app(TEKKRenderUI PRODUCT_NAME "TEKKRenderUI")
+    target_sources(TEKKRenderUI PRIVATE
+        tools/RenderUI.cpp
+        src/PluginProcessor.cpp
+        src/PluginEditor.cpp)
+    target_include_directories(TEKKRenderUI PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../dsp)
+    target_compile_definitions(TEKKRenderUI PRIVATE
+        JUCE_WEB_BROWSER=0
+        JUCE_USE_CURL=0
+        JUCE_STANDALONE_APPLICATION=1)
+    target_link_libraries(TEKKRenderUI PRIVATE
+        juce::juce_audio_utils
+        juce::juce_audio_processors
+        juce::juce_dsp
+        juce::juce_gui_extra
+        PRIVATE
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags)
+endif()
