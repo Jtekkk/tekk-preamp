@@ -91,8 +91,8 @@ PreampEditor::PreampEditor (PreampProcessor& p)
     aOutIron = std::make_unique<SA> (proc.apvts, PID::outIron, sOutIron);
     aHpf     = std::make_unique<SA> (proc.apvts, PID::hpf,     sHpf);
 
-    // --- character segmented switch (TEKK / CLONE) ---
-    for (auto* btn : { &tekkBtn, &cloneBtn })
+    // --- character segmented switch (TEKK | TUBE | CLONE -> indices 0 | 2 | 1) ---
+    for (auto* btn : { &tekkBtn, &tubeBtn, &cloneBtn })
     {
         btn->setClickingTogglesState (true);
         btn->setColour (juce::TextButton::textColourOnId,  juce::Colour (LF::cTextHi));
@@ -100,12 +100,15 @@ PreampEditor::PreampEditor (PreampProcessor& p)
         addAndMakeVisible (btn);
     }
     tekkBtn.getProperties() .set ("accent", (int) LF::cCyan);
+    tubeBtn.getProperties() .set ("accent", (int) LF::cMagenta);
     cloneBtn.getProperties().set ("accent", (int) LF::cMagenta);
     tekkBtn.onClick  = [this] { setCharacter (0); };
+    tubeBtn.onClick  = [this] { setCharacter (2); };
     cloneBtn.onClick = [this] { setCharacter (1); };
     {   // reflect the current choice immediately (no first-tick flash)
         const int ch0 = (int) proc.apvts.getRawParameterValue (PID::character)->load();
         tekkBtn .setToggleState (ch0 == 0, juce::dontSendNotification);
+        tubeBtn .setToggleState (ch0 == 2, juce::dontSendNotification);
         cloneBtn.setToggleState (ch0 == 1, juce::dontSendNotification);
     }
 
@@ -219,6 +222,7 @@ void PreampEditor::timerCallback()
     const int ch = (int) proc.apvts.getRawParameterValue (PID::character)->load();
     tekkBtn .setToggleState (ch == 0, juce::dontSendNotification);
     cloneBtn.setToggleState (ch == 1, juce::dontSendNotification);
+    tubeBtn .setToggleState (ch == 2, juce::dontSendNotification);
 
     // keep the clone name in sync (also catches host preset / state restores)
     cloneNameLabel.setText ("clone: " + proc.getCloneName(), juce::dontSendNotification);
@@ -259,16 +263,18 @@ void PreampEditor::resized()
     auto header = b.removeFromTop (kHeaderH);
     auto footer = b.removeFromBottom (kFooterH);
 
-    // header right: [ LOAD CLONE | TEKK | CLONE ] over a clone-name strip
+    // header right: [ LOAD CLONE | TEKK | TUBE | CLONE ] over a clone-name strip
     {
         auto h     = header.reduced (14, 12);
-        auto right = h.removeFromRight (300);
+        auto right = h.removeFromRight (340);
         auto top   = right.removeFromTop (26);
-        auto sw    = top.removeFromRight (190);
-        tekkBtn .setBounds (sw.removeFromLeft (sw.getWidth() / 2).reduced (2));
+        auto sw    = top.removeFromRight (204);
+        const int seg = sw.getWidth() / 3;
+        tekkBtn .setBounds (sw.removeFromLeft (seg).reduced (2));
+        tubeBtn .setBounds (sw.removeFromLeft (seg).reduced (2));
         cloneBtn.setBounds (sw.reduced (2));
         top.removeFromRight (8);
-        loadBtn.setBounds (top.removeFromRight (96));
+        loadBtn.setBounds (top.removeFromRight (90));
         right.removeFromTop (3);
         cloneNameLabel.setBounds (right);
     }

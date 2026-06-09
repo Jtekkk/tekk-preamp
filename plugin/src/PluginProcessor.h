@@ -6,6 +6,7 @@
 // shared, JUCE-free DSP core (same headers the offline harness validates)
 #include "../../dsp/PreampChain.h"
 #include "../../dsp/ActiveStage.h"
+#include "../../dsp/TriodeStage.h"
 #include "../../dsp/CloneCurve.h"
 #include "DefaultCloneCurve.h"   // generated: tools/clone_capture.cpp bake
 

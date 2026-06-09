@@ -19,13 +19,14 @@ oversampling.
 
     dsp/            JUCE-free DSP core (shared by harness AND plugin)
       ActiveStage.h     gain element: TekkTanhStage + LutCloneStage (ADAA)
+      TriodeStage.h     "tube" voicing: Koren triode on a load line -> LUT/ADAA
       JilesAtherton.h   magnetic hysteresis, implicit Newton solve
       TransformerStage.h  integrate -> J-A -> differentiate (1/omega flux)
       DCBlocker.h       inter-stage HPF
       PreampChain.h     polymorphic stage chain
       CloneCurve.h      captured-curve file format (.tekkcurve) + (de)serialise
     harness/        offline validation (compiles & runs anywhere)
-      measure.cpp       five experiments (see below)
+      measure.cpp       six experiments (see below)
       SimpleFFT.h       radix-2 FFT
     tools/          JUCE-free dev tooling
       clone_capture.cpp clone capture pipeline (signal/extract/bake/selftest)
@@ -47,6 +48,8 @@ Validated there (measured, not asserted):
   [4] J-A B-H loop has nonzero area (real memory)
   [5] transformer character is sample-rate independent (dt-normalised flux ->
       same voicing at 1x..8x oversampling)
+  [6] the tube voicing is even-harmonic dominant (Koren triode H2 > H3), the
+      opposite of the odd-dominant BJT tanh -- two measurably distinct characters
 
 ## Build the plugin
 
@@ -91,7 +94,10 @@ THD to <0.05%. The plugin loads .tekkcurve at runtime via loadCloneCurveText().
   * Runtime clone loading: a LOAD CLONE button in the editor opens a .tekkcurve,
     switches to the CLONE voicing, and shows the curve name. A loaded curve is
     persisted in the plugin state (so it survives a session save/reload).
+  * Tube character: a third voicing (TriodeStage) -- a Koren triode solved on a
+    plate load line, played through the clone path's LUT/ADAA. Even-harmonic
+    dominant; selected by the TEKK | TUBE | CLONE switch.
 
 ## Open work
-  * Higher-fidelity clone options behind the same ActiveStage seam: WDF Koren
-    triode, or a small RTNeural LSTM trained on device captures.
+  * Even higher-fidelity tube/clone: a full Wave Digital tree (reactive memory,
+    not just the static load-line curve), or an RTNeural LSTM trained on captures.

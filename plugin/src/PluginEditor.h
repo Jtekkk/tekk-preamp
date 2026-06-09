@@ -56,7 +56,8 @@ private:
     std::unique_ptr<SA> aInTrim, aDrive, aBias, aOutTrim, aInIron, aOutIron, aHpf;
 
     // character segmented switch (manual sync to the choice param)
-    juce::TextButton tekkBtn { "TEKK" }, cloneBtn { "CLONE" };
+    // display order TEKK | TUBE | CLONE maps to param indices 0 | 2 | 1
+    juce::TextButton tekkBtn { "TEKK" }, tubeBtn { "TUBE" }, cloneBtn { "CLONE" };
 
     // clone curve loader: pick a .tekkcurve, hand it to the processor
     juce::TextButton loadBtn { "LOAD CLONE" };

@@ -1,5 +1,6 @@
 #include "../dsp/ActiveStage.h"
 #include "../dsp/TransformerStage.h"
+#include "../dsp/TriodeStage.h"
 #include "SimpleFFT.h"
 #include <cstdio>
 #include <vector>
@@ -191,6 +192,34 @@ int main()
             auto mag = magSpectrum (out);
             printf ("    %-12.0f %14.3f\n", fs, 100.0 * thd (mag, fb, 12));
         }
+    }
+
+    // ----------------------------------------------------------------------
+    //  EXPERIMENT 6 -- the TUBE character is EVEN-harmonic dominant
+    //  Same tone/drive through the BJT long-tailed pair (TekkTanhStage, a
+    //  symmetric odd nonlinearity) and the Koren triode (TriodeStage, an
+    //  asymmetric load-line). The triode's asymmetry puts energy in H2; the
+    //  symmetric tanh has H2 at the floor with H3 dominant.
+    // ----------------------------------------------------------------------
+    printf ("\n[6] TUBE vs BJT HARMONIC CHARACTER   (fs=384k, 1kHz, drive=4, bias=0)\n");
+    printf ("    expect: triode H2 > H3 (even = tube);  tanh H3 > H2 (odd = BJT)\n\n");
+    {
+        const double fs = 384000.0;
+        std::vector<double> in; int fb = binCentredTone (in, fs, 1000.0, 0.5, N);
+        auto harm = [&] (ActiveStage& st)
+        {
+            st.prepare (fs);
+            auto out = runStage ([&](float x){ return st.processSample (x); }, in);
+            auto m = magSpectrum (out); double f1 = m[fb];
+            return std::pair<double,double> (db (m[fb*2]/f1), db (m[fb*3]/f1));
+        };
+        TekkTanhStage tanhS; tanhS.setDrive (4.0f); tanhS.setBias (0.0f);
+        TriodeStage   tubeS; tubeS.setDrive (4.0f); tubeS.setBias (0.0f);
+        auto bjt  = harm (tanhS);
+        auto tube = harm (tubeS);
+        printf ("    %-16s %10s %10s %10s\n", "stage", "H2(dB)", "H3(dB)", "H2-H3");
+        printf ("    %-16s %10.1f %10.1f %10.1f\n", "BJT tanh",     bjt.first,  bjt.second,  bjt.first  - bjt.second);
+        printf ("    %-16s %10.1f %10.1f %10.1f\n", "Koren triode", tube.first, tube.second, tube.first - tube.second);
     }
 
     printf ("\n================================================================\n");

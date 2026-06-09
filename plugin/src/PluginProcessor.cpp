@@ -78,6 +78,8 @@ std::unique_ptr<ActiveStage> PreampProcessor::makeActiveStage (int characterChoi
         s->loadCurve (cloneCurve, cloneRange);
         return s;
     }
+    if (characterChoice == 2)   // Tube (Koren triode)
+        return std::make_unique<TriodeStage>();
     return std::make_unique<TekkTanhStage>();   // TEKK parametric
 }
 
@@ -158,6 +160,8 @@ void PreampProcessor::updateLiveParams()
     {
         if (auto* t = dynamic_cast<TekkTanhStage*> (cc.active))
         { t->setDrive (drive); t->setBias (bias); }
+        else if (auto* tr = dynamic_cast<TriodeStage*> (cc.active))
+        { tr->setDrive (drive); tr->setBias (bias); }
         cc.inXf->setFluxDrive (inI);
         cc.outXf->setFluxDrive (outI);
     }

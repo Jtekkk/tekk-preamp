@@ -6,7 +6,7 @@ namespace PID
     // these strings are the stable APVTS identifiers; don't rename after release
     inline constexpr const char* inTrim   = "inTrim";
     inline constexpr const char* drive    = "drive";
-    inline constexpr const char* character= "character";   // 0 = TEKK, 1 = Clone
+    inline constexpr const char* character= "character";   // 0=TEKK 1=Clone 2=Tube
     inline constexpr const char* bias     = "bias";        // even-harmonic amount
     inline constexpr const char* inIron   = "inIron";      // input xfmr flux drive
     inline constexpr const char* outIron  = "outIron";     // output xfmr flux drive
@@ -31,7 +31,7 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
         NormalisableRange<float> (1.0f, 30.0f, 0.01f, 0.5f), 3.0f));
     p.add (std::make_unique<AudioParameterChoice>(
         ParameterID { PID::character, 1 }, "Character",
-        StringArray { "TEKK (parametric)", "Clone (captured)" }, 0));
+        StringArray { "TEKK (parametric)", "Clone (captured)", "Tube (Koren)" }, 0));
     p.add (std::make_unique<AudioParameterFloat>(
         ParameterID { PID::bias, 1 }, "Bias / Warmth",
         NormalisableRange<float> (0.0f, 1.2f, 0.001f), 0.0f));
