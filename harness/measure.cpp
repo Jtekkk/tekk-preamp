@@ -222,6 +222,36 @@ int main()
         printf ("    %-16s %10.1f %10.1f %10.1f\n", "Koren triode", tube.first, tube.second, tube.first - tube.second);
     }
 
+    // ----------------------------------------------------------------------
+    //  EXPERIMENT 7 -- transformer THROUGHPUT is unity at small signal
+    //  Every experiment above measures ratios (THD, harmonic deltas), which is
+    //  exactly how a -61 dB absolute level bug slipped through: the stage's
+    //  linear gain was chi*fluxDrive, not the unity the design intended -- two
+    //  transformers in series put the whole plugin at -120 dB ("no output").
+    //  Now the stage normalises by the measured small-signal susceptibility,
+    //  so the level must sit at ~0 dB for ANY fluxDrive and sample rate.
+    // ----------------------------------------------------------------------
+    printf ("\n[7] TRANSFORMER UNITY THROUGHPUT   (1kHz at -20 dBFS, voiced input iron)\n");
+    printf ("    expect: ~0 dB for every fluxDrive and fs (iron knob changes\n");
+    printf ("            saturation, not level)\n\n");
+    {
+        JilesAtherton::Params iron { 1.0, 0.12, 1.1e-3, 0.032, 0.70 };
+        printf ("    %-12s %12s %12s\n", "fluxDrive", "fs(Hz)", "gain(dB)");
+        for (double fd : { 0.0003, 0.0009, 0.0035 })
+            for (double fs : { 48000.0, 192000.0 })
+            {
+                std::vector<double> in; int fb = binCentredTone (in, fs, 1000.0, 0.1, N);
+                (void) fb;
+                TransformerStage tf; tf.setParams (iron); tf.setFluxDrive (fd);
+                tf.setLeakHz (20.0); tf.prepare (fs);
+                auto out = runStage ([&](float x){ return tf.processSample (x); }, in);
+                double si = 0.0, so = 0.0;
+                for (size_t n = N / 4; n < in.size(); ++n)      // skip leak settle
+                { si += in[n] * in[n]; so += out[n] * out[n]; }
+                printf ("    %-12.4f %12.0f %12.2f\n", fd, fs, db (std::sqrt (so / si)));
+            }
+    }
+
     printf ("\n================================================================\n");
     printf ("  done.\n");
     printf ("================================================================\n");

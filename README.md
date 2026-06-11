@@ -26,7 +26,7 @@ oversampling.
       PreampChain.h     polymorphic stage chain
       CloneCurve.h      captured-curve file format (.tekkcurve) + (de)serialise
     harness/        offline validation (compiles & runs anywhere)
-      measure.cpp       six experiments (see below)
+      measure.cpp       seven experiments (see below)
       SimpleFFT.h       radix-2 FFT
     tools/          JUCE-free dev tooling
       clone_capture.cpp clone capture pipeline (signal/extract/bake/selftest)
@@ -50,6 +50,9 @@ Validated there (measured, not asserted):
       same voicing at 1x..8x oversampling)
   [6] the tube voicing is even-harmonic dominant (Koren triode H2 > H3), the
       opposite of the odd-dominant BJT tanh -- two measurably distinct characters
+  [7] transformer throughput is unity at small signal for any fluxDrive and fs
+      (the stage normalises by the core's measured susceptibility, so the iron
+      knobs change saturation, not level)
 
 ## Build the plugin
 
